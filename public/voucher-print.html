@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cetak Voucher</title>
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; background: #eef1f5; color: #111; }
+    .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 16px; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 0; }
+    .bar input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; }
+    .bar button { padding: 7px 14px; border-radius: 6px; border: 1px solid #2563eb; background: #2563eb; color: #fff; font: inherit; cursor: pointer; }
+    .sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; padding: 16px; max-width: 1000px; margin: 0 auto; }
+    .v { background: #fff; border: 1.5px dashed #888; border-radius: 8px; padding: 10px 12px; break-inside: avoid; page-break-inside: avoid; }
+    .v .h { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 700; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-bottom: 6px; }
+    .v .h .price { color: #2563eb; }
+    .v .code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 18px; font-weight: 700; letter-spacing: .06em; text-align: center; margin: 4px 0; }
+    .v .row { display: flex; justify-content: space-between; font-size: 12px; }
+    .v .row b { font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .v .f { font-size: 10.5px; color: #555; text-align: center; margin-top: 6px; }
+    @media print {
+      body { background: #fff; }
+      .bar { display: none; }
+      .sheet { grid-template-columns: repeat(4, 1fr); padding: 0; gap: 6px; max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <b>Cetak Voucher</b>
+    <label>Nama hotspot <input id="title"></label>
+    <label>Harga <input id="price" size="10" placeholder="Rp5.000"></label>
+    <label>Info login <input id="dns" size="18" placeholder="login: hotspot.lan"></label>
+    <span style="flex:1"></span>
+    <span id="count"></span>
+    <button onclick="window.print()">🖨 Cetak</button>
+  </div>
+  <div class="sheet" id="sheet"></div>
+  <script>
+    (async function () {
+      const q = new URLSearchParams(location.search);
+      const id = q.get('id'), batch = q.get('batch');
+      const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const get = async (u) => { const r = await fetch('/api' + u); if (r.status === 401) location.href = '/login.html'; return r.json(); };
+      const [settings, batches] = await Promise.all([get('/settings'), get(`/routers/${id}/hotspot-batches`)]);
+      const b = (Array.isArray(batches) ? batches : []).find((x) => x.batch === batch);
+      const title = document.getElementById('title'), price = document.getElementById('price'), dns = document.getElementById('dns');
+      title.value = settings.hotspot_name || 'Hotspot';
+      price.value = q.get('price') || '';
+      const bytes = (v) => { v = Number(v); if (!v) return ''; const u = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0; while (v >= 1024 && i < 4) { v /= 1024; i++; } return `${+v.toFixed(1)} ${u[i]}`; };
+      function render() {
+        if (!b) { document.getElementById('sheet').innerHTML = '<p>Batch tidak ditemukan.</p>'; return; }
+        document.getElementById('count').textContent = `${b.users.length} voucher · batch ${b.batch}`;
+        document.getElementById('sheet').innerHTML = b.users.map((u) => {
+          const same = u.name === u.password;
+          const limit = [u['limit-uptime'] && u['limit-uptime'] !== '0s' ? u['limit-uptime'] : '', bytes(u['limit-bytes-total'])].filter(Boolean).join(' · ');
+          return `<div class="v">
+            <div class="h"><span>${esc(title.value)}</span><span class="price">${esc(price.value)}</span></div>
+            ${same ? `<div class="row"><span>Kode voucher</span></div><div class="code">${esc(u.name)}</div>`
+                   : `<div class="row"><span>Username</span><b>${esc(u.name)}</b></div><div class="row"><span>Password</span><b>${esc(u.password)}</b></div>`}
+            <div class="row"><span>Paket</span><span>${esc(u.profile)}${limit ? ' · ' + esc(limit) : ''}</span></div>
+            ${dns.value ? `<div class="f">${esc(dns.value)}</div>` : ''}
+          </div>`;
+        }).join('');
+      }
+      [title, price, dns].forEach((el) => { el.oninput = render; });
+      render();
+    })();
+  </script>
+</body>
+</html>

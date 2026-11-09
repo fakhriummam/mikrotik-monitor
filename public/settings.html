@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pengaturan — MikroTik Monitor</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <main class="container">
+    <div class="page-head"><h1>Pengaturan</h1></div>
+    <div class="grid two">
+      <form class="card" id="tgForm">
+        <div class="card-head"><h2>Notifikasi Telegram</h2><span class="spacer"></span><span id="tgStatus"></span></div>
+        <div class="form-grid">
+          <div class="field full"><label>Bot token <span class="hint">(dari @BotFather)</span></label><input name="telegram_token" autocomplete="off" placeholder="123456:ABC-DEF…"></div>
+          <div class="field full"><label>Chat ID <span class="hint">(user / grup, mis. -1001234567890)</span></label><input name="telegram_chat_id" autocomplete="off"></div>
+        </div>
+        <p class="small muted">Cara: buat bot di @BotFather → kirim pesan ke bot / tambahkan ke grup → buka <span class="mono">https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</span> untuk melihat chat ID.</p>
+        <div class="btn-row"><button class="btn primary">Simpan</button><button type="button" class="btn" id="tgTest">Kirim tes</button></div>
+      </form>
+      <form class="card" id="alertForm">
+        <div class="card-head"><h2>Ambang Alert</h2></div>
+        <div class="form-grid">
+          <div class="field"><label>CPU (%)</label><input name="alert_cpu" type="number" min="1" max="100"></div>
+          <div class="field"><label>RAM (%)</label><input name="alert_mem" type="number" min="1" max="100"></div>
+          <div class="field"><label>Jeda alert berulang (menit)</label><input name="alert_cooldown_min" type="number" min="0"></div>
+          <div class="field"><label>Nama hotspot di voucher</label><input name="hotspot_name"></div>
+        </div>
+        <p class="small muted">Alert CPU/RAM dikirim jika melewati ambang 3× polling berturut-turut. Router down dikirim setelah 3× gagal terhubung. Interface yang dipantau diatur di form edit router.</p>
+        <div class="btn-row"><button class="btn primary">Simpan</button></div>
+      </form>
+      <form class="card" id="pwForm">
+        <div class="card-head"><h2>Ganti Password Admin</h2></div>
+        <div class="form-grid">
+          <div class="field full"><label>Password lama</label><input name="oldPassword" type="password" required autocomplete="current-password"></div>
+          <div class="field"><label>Password baru</label><input name="newPassword" type="password" required minlength="6" autocomplete="new-password"></div>
+          <div class="field"><label>Ulangi password baru</label><input name="confirm" type="password" required autocomplete="new-password"></div>
+        </div>
+        <div class="btn-row" style="margin-top:12px"><button class="btn primary">Ganti password</button></div>
+      </form>
+    </div>
+    <div class="card" id="alerts" style="margin-top:16px">
+      <div class="card-head"><h2>Semua Alert</h2></div>
+      <div id="alertList"></div>
+    </div>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    (function () {
+      const { api, esc, fmt, run, formData, topbar, listenAlerts } = App;
+      topbar('settings');
+      async function load() {
+        const s = await api.get('/settings');
+        const tg = document.getElementById('tgForm');
+        tg.telegram_token.value = '';
+        tg.telegram_token.placeholder = s.telegram_token_set ? `tersimpan (${s.telegram_token}) — isi untuk mengganti` : '123456:ABC-DEF…';
+        tg.telegram_chat_id.value = s.telegram_chat_id;
+        document.getElementById('tgStatus').innerHTML = s.telegram_token_set && s.telegram_chat_id ? '<span class="badge ok">terhubung</span>' : '<span class="badge">belum diatur</span>';
+        const af = document.getElementById('alertForm');
+        for (const k of ['alert_cpu', 'alert_mem', 'alert_cooldown_min', 'hotspot_name']) af[k].value = s[k];
+        const list = await api.get('/settings/alerts');
+        document.getElementById('alertList').innerHTML = list.length ? list.map((a) => `<div class="alert-row"><span class="small muted nowrap">${fmt.time(a.ts)}</span><b class="nowrap">${esc(a.router_name || '-')}</b><span class="msg">${esc(a.message)}</span>${a.sent ? '<span class="badge ok" title="Terkirim ke Telegram">TG</span>' : ''}</div>`).join('') : '<div class="empty">Belum ada alert</div>';
+      }
+      document.getElementById('tgForm').onsubmit = async (e) => { e.preventDefault(); await run(() => api.put('/settings', formData(e.target)), 'Pengaturan Telegram disimpan'); load(); };
+      document.getElementById('tgTest').onclick = () => run(() => api.post('/settings/telegram-test'), 'Pesan tes terkirim ke Telegram');
+      document.getElementById('alertForm').onsubmit = async (e) => { e.preventDefault(); await run(() => api.put('/settings', formData(e.target)), 'Pengaturan disimpan'); };
+      document.getElementById('pwForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const d = formData(e.target);
+        if (d.newPassword !== d.confirm) return App.toast('Konfirmasi password tidak sama', 'error');
+        await run(() => api.post('/auth/password', d), 'Password diganti');
+        e.target.reset();
+      };
+      const socket = io();
+      listenAlerts(socket);
+      socket.on('alert', load);
+      load();
+    })();
+  </script>
+</body>
+</html>

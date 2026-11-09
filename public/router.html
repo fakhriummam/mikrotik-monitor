@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Detail Router — MikroTik Monitor</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <main class="container">
+    <div class="page-head">
+      <a href="/index.html" class="btn sm ghost">← Kembali</a>
+      <span class="dot" id="statusDot"></span>
+      <h1 id="rname" style="margin:0">Router</h1>
+      <span class="muted small" id="rmeta"></span>
+      <span class="spacer"></span>
+      <button class="btn sm" id="editBtn">Edit</button>
+      <button class="btn sm danger" id="delBtn">Hapus</button>
+    </div>
+    <div id="offline" class="event-banner hidden" style="background:color-mix(in srgb,var(--danger) 12%,var(--surface));border-color:color-mix(in srgb,var(--danger) 45%,transparent)"></div>
+    <div id="eventBanner" class="event-banner hidden"></div>
+
+    <div class="tabs" id="tabs">
+      <button data-tab="overview" class="active">Ringkasan</button>
+      <button data-tab="history">Riwayat</button>
+      <button data-tab="bandwidth">Bandwidth</button>
+      <button data-tab="event">Mode Event</button>
+      <button data-tab="hsusers">User Hotspot</button>
+      <button data-tab="voucher">Voucher</button>
+      <button data-tab="hsprofiles">Profil Hotspot</button>
+      <button data-tab="hsactive">Hotspot Aktif</button>
+      <button data-tab="ppp">PPPoE</button>
+      <button data-tab="dhcp">DHCP Lease</button>
+      <button data-tab="logs">Log</button>
+      <button data-tab="alerts">Alert & Riwayat Aksi</button>
+    </div>
+
+    <!-- RINGKASAN -->
+    <section data-panel="overview">
+      <div class="grid stats" style="margin-bottom:16px">
+        <div class="card stat"><div class="k">CPU</div><div class="v" id="sCpu">–</div><div class="bar"><span id="bCpu"></span></div></div>
+        <div class="card stat"><div class="k">RAM</div><div class="v" id="sMem">–</div><div class="bar"><span id="bMem"></span></div><div class="s" id="sMemD"></div></div>
+        <div class="card stat"><div class="k">Suhu</div><div class="v" id="sTemp">–</div></div>
+        <div class="card stat"><div class="k">Uptime</div><div class="v" style="font-size:16px" id="sUp">–</div></div>
+        <div class="card stat"><div class="k">Hotspot aktif</div><div class="v" id="sHs">–</div></div>
+        <div class="card stat"><div class="k">PPPoE aktif</div><div class="v" id="sPpp">–</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>Trafik Live</h2>
+          <select id="liveIface" style="width:auto"></select>
+          <span class="spacer"></span>
+          <span class="small"><span class="badge info" id="liveRx">↓ –</span> <span class="badge ok" id="liveTx">↑ –</span></span>
+        </div>
+        <div class="chart-box"><canvas id="liveChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Interface</h2></div>
+        <div class="table-wrap"><table><thead><tr><th>Nama</th><th>Tipe</th><th>Status</th><th class="num">Download (rx)</th><th class="num">Upload (tx)</th></tr></thead><tbody id="ifaceBody"></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- RIWAYAT -->
+    <section data-panel="history" class="hidden">
+      <div class="toolbar">
+        <select id="hRange"><option value="1h">1 jam terakhir</option><option value="24h" selected>24 jam terakhir</option><option value="7d">7 hari terakhir</option><option value="30d">30 hari terakhir</option></select>
+        <select id="hIface"></select>
+        <span class="small muted">Sampel disimpan tiap 1 menit.</span>
+      </div>
+      <div class="grid two">
+        <div class="card"><h3>Trafik interface</h3><div class="chart-box"><canvas id="hTraffic"></canvas></div></div>
+        <div class="card"><h3>CPU & RAM</h3><div class="chart-box"><canvas id="hRes"></canvas></div></div>
+        <div class="card"><h3>User online</h3><div class="chart-box"><canvas id="hUsers"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- BANDWIDTH -->
+    <section data-panel="bandwidth" class="hidden">
+      <div class="grid two" style="margin-bottom:16px">
+        <form class="card" id="limitForm">
+          <div class="card-head"><h2>Atur Bandwidth</h2></div>
+          <p class="small muted" style="margin-top:-6px">Batasi bandwidth untuk satu network/subnet atau satu device.</p>
+          <div class="form-grid">
+            <div class="field full"><label>Target <span class="hint">(subnet atau IP device)</span></label>
+              <div class="btn-row" style="flex-wrap:nowrap"><input name="target" required placeholder="192.168.10.0/24 atau 192.168.10.5"><button type="button" class="btn sm" data-pick="target">Pilih device</button></div></div>
+            <div class="field"><label>Nama queue</label><input name="name" required placeholder="limit-aula"></div>
+            <div class="field"><label>Max limit <span class="hint">(up/down)</span></label><input name="maxLimit" required placeholder="5M/20M"></div>
+            <div class="field"><label>Terjamin (limit-at) <span class="hint">opsional</span></label><input name="limitAt" placeholder="1M/5M"></div>
+            <div class="field"><label>Priority <span class="hint">(1 tertinggi)</span></label><select name="priority"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option selected>8</option></select></div>
+          </div>
+          <div class="btn-row" style="margin-top:12px"><button class="btn primary">Terapkan</button></div>
+        </form>
+        <form class="card" id="focusForm">
+          <div class="card-head"><h2>Fokuskan Satu Device</h2></div>
+          <p class="small muted" style="margin-top:-6px">Device mendapat bandwidth terjamin & prioritas tertinggi; device lain di network yang sama berbagi sisanya.</p>
+          <div class="form-grid">
+            <div class="field full"><label>IP device</label>
+              <div class="btn-row" style="flex-wrap:nowrap"><input name="device" required placeholder="192.168.10.15"><button type="button" class="btn sm" data-pick="device">Pilih device</button></div></div>
+            <div class="field"><label>Network-nya</label><input name="network" required placeholder="192.168.10.0/24"></div>
+            <div class="field"><label>Nama</label><input name="name" placeholder="fokus-operator"></div>
+            <div class="field"><label>Total bandwidth network</label><input name="total" required placeholder="50M/50M"></div>
+            <div class="field"><label>Terjamin untuk device</label><input name="guarantee" required placeholder="20M/20M"></div>
+          </div>
+          <div class="btn-row" style="margin-top:12px"><button class="btn primary">Fokuskan</button></div>
+        </form>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Simple Queue</h2><span class="small muted">rate diperbarui tiap 5 detik saat tab ini terbuka</span><span class="spacer"></span><button class="btn sm" id="qRefresh">Muat ulang</button></div>
+        <div id="queueTable"></div>
+      </div>
+    </section>
+
+    <!-- MODE EVENT -->
+    <section data-panel="event" class="hidden">
+      <div class="page-head"><div><h2 style="margin:0">Profil Mode Event</h2><div class="small muted">Simpan sekumpulan aturan bandwidth untuk acara, aktifkan dengan satu klik, dan kembalikan normal otomatis.</div></div><span class="spacer"></span><button class="btn primary" id="newProfile">+ Profil Baru</button></div>
+      <div class="profile-list" id="profiles"></div>
+      <div class="card" style="margin-top:16px"><div class="card-head"><h2>Riwayat Aktivasi</h2></div><div id="eventHistory"></div></div>
+    </section>
+
+    <!-- USER HOTSPOT -->
+    <section data-panel="hsusers" class="hidden">
+      <div class="toolbar">
+        <input id="hsSearch" placeholder="Cari username / komentar…">
+        <select id="hsProfileFilter"><option value="">Semua profil</option></select>
+        <select id="hsStatusFilter"><option value="">Semua status</option><option value="online">Online</option><option value="disabled">Nonaktif</option></select>
+        <span class="spacer" style="flex:1"></span>
+        <button class="btn" id="hsRefresh">Muat ulang</button>
+        <button class="btn primary" id="hsAdd">+ Tambah User</button>
+      </div>
+      <div id="hsTable"></div>
+    </section>
+
+    <!-- VOUCHER -->
+    <section data-panel="voucher" class="hidden">
+      <form class="card" id="genForm">
+        <div class="card-head"><h2>Generate Voucher</h2></div>
+        <div class="form-grid">
+          <div class="field"><label>Jumlah</label><input name="count" type="number" min="1" max="500" value="10" required></div>
+          <div class="field"><label>Profil</label><select name="profile" data-profiles></select></div>
+          <div class="field"><label>Server hotspot</label><select name="server" data-servers></select></div>
+          <div class="field"><label>Prefix <span class="hint">opsional</span></label><input name="prefix" maxlength="10" placeholder="EV"></div>
+          <div class="field"><label>Panjang kode</label><input name="length" type="number" min="3" max="16" value="6"></div>
+          <div class="field"><label>Jenis karakter</label><select name="charset"><option value="num">Angka</option><option value="lower">Huruf kecil</option><option value="upper">Huruf besar</option><option value="alnum" selected>Huruf kecil + angka</option><option value="mixed">Campuran</option></select></div>
+          <div class="field"><label>Login</label><select name="mode"><option value="same">Username = password</option><option value="userpass">Username & password berbeda</option></select></div>
+          <div class="field"><label>Batas waktu <span class="hint">(mis. 3h, 1d)</span></label><input name="limitUptime" placeholder="kosong = tanpa batas"></div>
+          <div class="field"><label>Kuota <span class="hint">(mis. 1G)</span></label><input name="limitBytes" placeholder="kosong = tanpa batas"></div>
+          <div class="field"><label>Catatan / nama event</label><input name="note" maxlength="40" placeholder="Seminar"></div>
+          <div class="field"><label>Harga di voucher <span class="hint">opsional</span></label><input name="price" placeholder="Rp5.000"></div>
+        </div>
+        <div class="btn-row" style="margin-top:12px"><button class="btn primary">Generate</button></div>
+      </form>
+      <div class="card"><div class="card-head"><h2>Batch Voucher</h2><span class="spacer"></span><button class="btn sm" id="batchRefresh">Muat ulang</button></div><div id="batches"></div></div>
+    </section>
+
+    <!-- PROFIL HOTSPOT -->
+    <section data-panel="hsprofiles" class="hidden">
+      <div class="toolbar"><span class="muted small">Profil menentukan rate-limit, jumlah device per akun, dan batas sesi.</span><span class="spacer" style="flex:1"></span><button class="btn primary" id="profAdd">+ Profil</button></div>
+      <div id="profTable"></div>
+    </section>
+
+    <section data-panel="hsactive" class="hidden"><div class="toolbar"><input data-search="hsactive" placeholder="Cari…"><span class="spacer" style="flex:1"></span><button class="btn" data-refresh="hsactive">Muat ulang</button></div><div id="hsactiveTable"></div></section>
+    <section data-panel="ppp" class="hidden"><div class="toolbar"><input data-search="ppp" placeholder="Cari…"><span class="spacer" style="flex:1"></span><button class="btn" data-refresh="ppp">Muat ulang</button></div><div id="pppTable"></div></section>
+    <section data-panel="dhcp" class="hidden"><div class="toolbar"><input data-search="dhcp" placeholder="Cari IP / MAC / hostname…"><span class="spacer" style="flex:1"></span><button class="btn" data-refresh="dhcp">Muat ulang</button></div><div id="dhcpTable"></div></section>
+    <section data-panel="logs" class="hidden"><div class="toolbar"><input data-search="logs" placeholder="Cari pesan / topik…"><span class="spacer" style="flex:1"></span><button class="btn" data-refresh="logs">Muat ulang</button></div><div id="logsTable"></div></section>
+    <section data-panel="alerts" class="hidden">
+      <div class="grid two">
+        <div class="card"><div class="card-head"><h2>Alert</h2></div><div id="alertList"></div></div>
+        <div class="card"><div class="card-head"><h2>Riwayat Aksi</h2></div><div id="auditList"></div></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/vendor/chart.js/chart.umd.min.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/router-form.js"></script>
+  <script src="/js/router.js"></script>
+  <script src="/js/bandwidth.js"></script>
+  <script src="/js/hotspot.js"></script>
+</body>
+</html>

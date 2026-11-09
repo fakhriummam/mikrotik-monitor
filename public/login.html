@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Masuk — MikroTik Monitor</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <form class="card login-card" id="f">
+      <div class="brand"><span class="logo">MT</span>MikroTik Monitor</div>
+      <div class="field" style="margin-bottom:12px">
+        <label for="u">Username</label>
+        <input id="u" name="username" autocomplete="username" required autofocus>
+      </div>
+      <div class="field">
+        <label for="p">Password</label>
+        <input id="p" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <div class="error-text" id="err"></div>
+      <button class="btn primary" style="width:100%;margin-top:8px" type="submit">Masuk</button>
+    </form>
+  </div>
+  <script src="/js/api.js"></script>
+  <script>
+    App.api.get('/auth/me').then(() => { location.href = '/index.html'; }).catch(() => {});
+    document.getElementById('f').onsubmit = async (e) => {
+      e.preventDefault();
+      const err = document.getElementById('err');
+      err.textContent = '';
+      try {
+        await App.api.post('/auth/login', App.formData(e.target));
+        location.href = '/index.html';
+      } catch (ex) { err.textContent = ex.message; }
+    };
+  </script>
+</body>
+</html>

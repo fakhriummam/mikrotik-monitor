@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard — MikroTik Monitor</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <main class="container">
+    <div class="page-head">
+      <h1>Dashboard Router</h1>
+      <span class="muted" id="totals"></span>
+      <span class="spacer"></span>
+      <button class="btn primary" id="addBtn">+ Tambah Router</button>
+    </div>
+    <div class="grid routers" id="routers"></div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="card-head"><h2>Alert Terbaru</h2><span class="spacer"></span><a href="/settings.html#alerts" class="small">Lihat semua</a></div>
+      <div id="alerts"></div>
+    </div>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/router-form.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>
